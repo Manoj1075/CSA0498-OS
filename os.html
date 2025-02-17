@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CPU Scheduling Visualizer</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #121212; /* Black background */
+            color: white; /* White text for contrast */
+            padding: 20px;
+        }
+
+        h1 {
+            color: #ffffff;
+        }
+
+        table {
+            width: 80%;
+            margin: 20px auto;
+            border-collapse: collapse;
+        }
+
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: center;
+        }
+
+        input {
+            padding: 5px;
+            margin: 5px;
+            width: 50px;
+            background-color: #333;
+            color: white;
+            border: 1px solid #555;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .results {
+            margin-top: 30px;
+        }
+
+        canvas {
+            width: 80%;
+            height: 400px;
+            margin: 20px auto;
+        }
+
+        select {
+            padding: 5px;
+            background-color: #333;
+            color: white;
+            border: 1px solid #555;
+        }
+
+        .form-container {
+            background-color: #1a1a1a;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            display: inline-block;
+        }
+
+        h2 {
+            color: #ffffff;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>CPU Scheduling Visualizer</h1>
+
+    <div class="form-container">
+        <form id="processForm">
+            <h2>Select Scheduling Algorithm</h2>
+            <label for="algorithm">Select Algorithm:</label>
+            <select id="algorithm">
+                <option value="FCFS">First Come First Serve (FCFS)</option>
+                <option value="SJF">Shortest Job First (SJF)</option>
+                <option value="RoundRobin">Round Robin</option>
+                <option value="Priority">Priority Scheduling</option>
+            </select>
+
+            <table id="processTable">
+                <tr>
+                    <th>Process ID</th>
+                    <th>Arrival Time</th>
+                    <th>Burst Time</th>
+                    <th>Priority (If Priority Scheduling)</th>
+                </tr>
+                <tr>
+                    <td><input type="text" value="P1"></td>
+                    <td><input type="number" value="0"></td>
+                    <td><input type="number" value="5"></td>
+                    <td><input type="number" value="1"></td>
+                </tr>
+            </table>
+            <button type="button" onclick="addProcess()">Add Process</button>
+            <button type="submit">Run Simulation</button>
+        </form>
+    </div>
+
+    <div class="results" id="results"></div>
+    <canvas id="ganttChart"></canvas>
+
+    <script>
+        // Handle form submission
+        document.getElementById("processForm").addEventListener("submit", function (event) {
+            event.preventDefault();
+
+            const algorithm = document.getElementById("algorithm").value;
+            const tableRows = document.querySelectorAll("#processTable tr");
+            let processes = [];
+
+            tableRows.forEach((row, index) => {
+                if (index === 0) return;
+                let cells = row.querySelectorAll("td input");
+                processes.push({
+                    id: cells[0].value,
+                    arrivalTime: parseInt(cells[1].value),
+                    burstTime: parseInt(cells[2].value),
+                    priority: parseInt(cells[3].value) || 0
+                });
+            });
+
+            const result = runSchedulingAlgorithm(algorithm, processes);
+            displayResults(result);
+            drawGanttChart(result);
+        });
+
+        // Add a new process row
+        function addProcess() {
+            let table = document.getElementById("processTable");
+            let newRow = table.insertRow(-1);
+            newRow.innerHTML = `
+                <td><input type="text" value="P${table.rows.length}"></td>
+                <td><input type="number" value="0"></td>
+                <td><input type="number" value="5"></td>
+                <td><input type="number" value="1"></td>
+            `;
+        }
+
+        // Calculate Scheduling using FCFS
+        function fcfsScheduling(processes) {
+            processes.sort((a, b) => a.arrivalTime - b.arrivalTime); // Sort by arrival time
+            let ganttChart = [];
+            let currentTime = 0;
+            processes.forEach(process => {
+                const startTime = Math.max(currentTime, process.arrivalTime);
+                const endTime = startTime + process.burstTime;
+                ganttChart.push({ processId: process.id, startTime, endTime });
+                currentTime = endTime;
+            });
+            return ganttChart;
+        }
+
+        // Algorithm Selector and Scheduling Logic
+        function runSchedulingAlgorithm(algorithm, processes) {
+            switch (algorithm) {
+                case 'FCFS':
+                    return fcfsScheduling(processes);
+                // Add other algorithms like SJF, Round Robin, Priority Scheduling here
+                default:
+                    return [];
+            }
+        }
+
+        // Display Results in a table
+        function displayResults(ganttChart) {
+            let resultHTML = "<h3>Scheduling Results:</h3>";
+            resultHTML += "<table><tr><th>Process ID</th><th>Start Time</th><th>End Time</th></tr>";
+            ganttChart.forEach(item => {
+                resultHTML += `<tr><td>${item.processId}</td><td>${item.startTime}</td><td>${item.endTime}</td></tr>`;
+            });
+            resultHTML += "</table>";
+            document.getElementById("results").innerHTML = resultHTML;
+        }
+
+        // Draw Gantt Chart using Chart.js
+        function drawGanttChart(ganttChart) {
+            const ctx = document.getElementById("ganttChart").getContext("2d");
+            const labels = ganttChart.map(item => item.processId);
+            const data = ganttChart.map(item => item.endTime - item.startTime);
+
+            new Chart(ctx, {
+                type: "bar",
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: "Process Execution Time",
+                        data: data,
+                        backgroundColor: "rgba(54, 162, 235, 0.6)"
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: { beginAtZero: true },
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+
+</html>
